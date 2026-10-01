@@ -1,6 +1,33 @@
-# SharePoint and Microsoft Graph setup
+# SharePoint setup
 
-## Values supplied by your administrator
+## September 2026 pilot: local synchronized folder
+
+The active pilot does not call Microsoft Graph. Sign in to the organization’s
+approved SharePoint/OneDrive sync client using your normal organization
+process, allow the approved library to synchronize, and set
+`LOCAL_SHAREPOINT_ROOT` in `.env` or paste the synchronized folder into the
+app sidebar. The app recursively reads workbook metadata from that folder and
+does not modify, rename, move, or save over source files.
+
+The pilot selects only `.xlsx` files whose names start with these exact
+prefixes:
+
+- `SnapPay AR Transaction`
+- `BMO BLUEPAY`
+- `BLUEPAY Fiserv Bankcard`
+- `RC BLUEPAY GENERAL`
+- `G.L. 1.1070`
+
+It reports filename-derived source group suggestions. The user can change each
+suggestion in Configuration Validation. Header/column mapping is never
+inferred. Filename selection does not prove the transaction data is from
+September 2026; period membership must be independently verified after the
+column/date mappings are approved. The pilot profile page does not reconcile.
+
+No Graph token, Entra app registration, site ID, drive ID, or Graph permission
+is required for this local pilot.
+
+## Optional future Graph integration
 
 The repository deliberately does not invent tenant IDs, application IDs,
 SharePoint site IDs, library/drive IDs, URLs, or credentials. Ask the
@@ -10,85 +37,29 @@ Microsoft 365/Entra administrator to provide:
 - Public-client application ID (`MS_CLIENT_ID`)
 - Exact SharePoint site identifier (`SHAREPOINT_SITE_ID`)
 - Document library/drive identifier (`SHAREPOINT_DRIVE_ID`)
-- Root folder path (`SHAREPOINT_ROOT_FOLDER`), usually the controlled raw
-  landing folder
+- Root folder path (`SHAREPOINT_ROOT_FOLDER`)
 
-Copy `.env.example` to `.env`, set these values, and keep `.env` local. The
-Graph connector requires all five values; it fails explicitly if any are
-missing. `config/column_mappings.yaml` maps each source name to a path relative
-to the configured root. The expected landing-zone folders are:
+For a future Graph mode only, copy `.env.example` to `.env` and populate those
+values. The optional Graph client uses interactive delegated authentication
+and `Sites.Selected` read access granted for the specific site. The active
+pilot does not invoke this client.
 
-```text
-01 Raw/
-  SnapPay/
-  BluePay/
-  BMO/
-  JDE/
-  Adjustments/
-02 Configuration/
-03 Output/
-```
+## Local source-profile behavior
 
-Adjust the root and relative source-folder mappings to the actual library
-layout. Only source mappings in SnapPay, BluePay, BMO, and JDE are downloaded
-as reconciliation inputs. Adjustments, Configuration, and Output are not
-treated as transaction sources.
+The profile scanner traverses the configured local root, selects matching
+workbooks by filename, and opens them with a read-only workbook reader. It
+records path, name, byte size, filename-derived source group, worksheet names,
+row counts below row 1, first-row headers, and profile errors. It does not
+write extracted rows to disk. The downloadable profile report is created in
+memory and contains source files, worksheets, headers, and missing required
+fields. A reviewer must explicitly save/approve the mapping; mapping and
+approval metadata are stored under ignored local `data/`.
 
-## App registration and permission
+## Future Graph safeguards
 
-1. Register a **public client** application for the local prototype and enable
-   the interactive redirect URI `http://localhost` as required by MSAL
-   Python's `acquire_token_interactive`.
-2. Add the delegated Microsoft Graph `Sites.Selected` permission and obtain
-   administrator consent.
-3. Have an authorized SharePoint administrator grant this application the
-   **read** role on only the intended site. `Sites.Selected` does not grant
-   site access by itself; the per-site grant is a separate administrative
-   step. Do not grant write permissions.
-4. Verify that the signed-in reviewer can also read the controlled library and
-   source folders.
-
-Microsoft describes selected permissions as a way to scope access to selected
-SharePoint/OneDrive resources: [Selected permissions overview](https://learn.microsoft.com/graph/permissions-selected-overview).
-Interactive public-client authentication uses MSAL's interactive token
-acquisition and PKCE; see [MSAL Python acquire tokens](https://learn.microsoft.com/entra/msal/python/getting-started/acquiring-tokens#interactive).
-
-## Read-only behavior and filtering
-
-The Graph client only sends `GET` requests. It recursively lists folders,
-ignores unapproved extensions, downloads `.xlsx`, `.xlsm`, and `.csv` bytes,
-and captures file ID, name, size, modified/created timestamps, eTag, parent
-path, download URL, and SHA-256. No SharePoint metadata or file content is
-written back. Local downloads are under ignored `data/raw/<source>/<hash>/`.
-The same content hash cannot be processed twice in one run/reporting period;
-the run is aborted if a duplicate is mixed with new files, avoiding a partial
-success. A previously used source file can be processed for another reporting
-period.
-
-The Graph list operation can prefilter by SharePoint `lastModifiedDateTime`
-for a requested period; this is only a file-level intake optimization. The
-reconciliation engine applies the authoritative period filter to each parsed
-row's transaction/posting date. Files whose modified timestamp is outside the
-period can contain in-period transactions; adjust the intake policy if this
-pre-filter would exclude such files.
-
-## Delta-token extension
-
-`GraphSharePointClient.read_delta(repository)` starts with the drive root delta
-endpoint, follows every Graph `@odata.nextLink`, and persists the returned
-`@odata.deltaLink` in SQLite application state for future runs. It returns
-metadata changes only; it is an architecture hook, not a scheduled sync
-service. A production delta consumer must scope returned items to the
-configured root, handle deleted/renamed items, handle expired delta tokens by
-reinitializing, and apply the same approved-extension/hash gates. See
-[driveItem: delta](https://learn.microsoft.com/graph/api/driveitem-delta?view=graph-rest-1.0).
-
-## Operational safeguards
-
-- Tokens remain in process memory; no serialized token cache is written.
-- The Graph permission is read-only; the client has no upload/edit/delete code.
-- Never paste financial workbook contents into an AI service or source-control
-  issue.
-- Use a dedicated, access-controlled workstation and protected disk for
-  runtime financial data.
-- Revoke the site grant and app consent when the prototype is no longer needed.
+The optional Graph client only sends `GET` requests. It recursively lists
+folders, supports `.xlsx`, `.xlsm`, and `.csv`, and captures file metadata and
+SHA-256. A later Graph pilot must review folder scoping, file-period selection,
+delta-token recovery, and duplicate handling before enabling its user-facing
+mode. See [driveItem: delta](https://learn.microsoft.com/graph/api/driveitem-delta?view=graph-rest-1.0)
+and [Selected permissions overview](https://learn.microsoft.com/graph/permissions-selected-overview).

@@ -3,17 +3,21 @@
 This is a controlled prototype, not a certified financial system or a
 replacement for Finance's approved close controls.
 
-- Production source headers, worksheets, signed amount conventions, statuses,
-  period/date semantics, tolerance, settlement window, and SharePoint paths
-  are unknown. The production YAML is an explicit placeholder and must be
-  completed and independently approved.
+- Headers and worksheet layouts have been profiled from the local August
+  workbooks, but the proposed mappings are unapproved. Signed amount
+  conventions, status meanings, and period/date semantics still require
+  source-owner and Finance confirmation. The production YAML remains an
+  explicit placeholder and must be completed and independently approved.
 - The sample uses synthetic data only. There are no real account numbers,
   tenant values, processor schemas, credentials, or transaction workbooks.
 - Numeric spreadsheet identifiers may already have lost leading zeros before
-  ingestion; configure upstream exports to store identifiers as text.
-- The file-level SharePoint modified-date filter can exclude a file with
-  in-period transactions if that file was last modified outside the period.
-  Row transaction/posting date is the authoritative processing filter.
+  ingestion; configure upstream exports to store identifiers as text. The
+  metadata profiler flags numeric identifier columns but cannot recover a
+  zero that was discarded before the workbook was created.
+- The active September 2026 pilot profiles local synchronized `.xlsx` files by
+  filename only. It does not verify reporting-period dates or reconcile
+  transaction data; September labeling is a pilot workflow label, not a date
+  control.
 - Amount tolerance and grouping behavior require Finance validation.
   Backend/customer reference grouping may be ambiguous when references are
   reused; the exact key must be approved per real source.
@@ -28,9 +32,9 @@ replacement for Finance's approved close controls.
 - Manual override approval is captured but not enforced as a two-person
   workflow. Application login, role-based access, segregation of duties,
   immutable external audit retention, and approval routing are future work.
-- Interactive delegated auth is designed for a local prototype. Tokens are
-  ephemeral, Streamlit deployment/authentication is not hardened, and the app
-  is not suitable for unattended scheduled production ingestion.
+- Microsoft Graph is optional future integration and is not used by the active
+  local synchronized-folder pilot. If enabled later, delegated auth and
+  Streamlit deployment need security hardening before production.
 - Delta-token persistence is a foundation only; there is no scheduler, delta
   retry/expiry recovery, deletion handling, or automatic incremental
   reconciliation.

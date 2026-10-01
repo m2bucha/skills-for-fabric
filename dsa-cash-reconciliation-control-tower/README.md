@@ -1,14 +1,41 @@
 # DSA Cash Reconciliation Control Tower
 
-A Python prototype for controlled, exception-based cash reconciliation across
-SnapPay → BluePay → BMO Bank → JD Edwards GL. Source files remain immutable;
-the prototype ingests approved files read-only, stores a run ledger in SQLite,
-and presents review evidence in Streamlit and Excel.
+A Python prototype for controlled cash-reconciliation workflow development.
+The September 2026 pilot currently exposes only local source profiling and
+mapping validation; it does not run reconciliation or ingest transaction
+rows. The reconciliation engine remains covered by synthetic tests, but is
+deliberately not exposed in the pilot UI.
 
 > **Configuration required:** `config/column_mappings.yaml` intentionally
 > contains clearly marked header and worksheet placeholders. Replace them with
 > approved source specifications before processing non-synthetic data. No
 > tenant, site, drive, URL, account, or credential values are fabricated.
+
+## September 2026 local-file pilot
+
+The default and only active pilot intake mode is **Local Synced SharePoint
+Folder**. Set `LOCAL_SHAREPOINT_ROOT` in `.env` or paste the synchronized
+SharePoint path in the app sidebar. The app profiles matching workbooks
+recursively, reads workbook metadata/headers in read-only mode, and offers a
+downloadable Excel source-profile report. It does not edit, rename, move, or
+save over source files.
+
+Profile filename groups are `SnapPay AR Transaction*.xlsx`, `BMO
+BLUEPAY*.xlsx`, `BLUEPAY Fiserv Bankcard*.xlsx`, `RC BLUEPAY
+GENERAL*.xlsx`, and `G.L. 1.1070*.xlsx`. Filename-based adapter assignments
+are suggestions that the reviewer may change. No production column mappings
+are inferred from those names.
+
+Use **Configuration Validation** to select worksheet names and map canonical
+required/optional fields to headers observed in the scanned workbooks. The
+page also shows confidence-rated proposals with their rationale and allows
+editing and saving them as a separate, unapproved draft under ignored `data/`.
+Drafts never change the active mapping. Mapping approval is an explicit
+reviewer action; it is never automatic. Reconciliation is disabled in this
+pilot UI. `RC BLUEPAY GENERAL` remains unassigned pending confirmation of its
+provenance and amount/ledger rules, and is profiled separately from `G.L.
+1.1070`. **Microsoft Graph** remains an optional future connector; the pilot
+does not request Graph authentication or download files.
 
 ## Quick start
 
@@ -18,35 +45,25 @@ From this directory, install the prototype and test dependencies:
 python -m pip install -e ".[test]"
 ```
 
-Create the synthetic source files and run the end-to-end reconciliation:
+Copy `.env.example` to `.env` if it does not exist. Leave
+`LOCAL_SHAREPOINT_ROOT=` blank if you prefer to enter the path in the app.
+Otherwise set it to the local synchronized SharePoint folder. Graph credentials
+are not required for this pilot.
 
-```powershell
-python scripts/run_synthetic.py
-```
-
-Expected result: four synthetic input files are read, an SQLite ledger is
-created under ignored `data/`, and the source-to-output row and dollar bridge
-is zero for all sources. The synthetic data covers clean, grouped, timing,
-missing, duplicate, mismatch, reject, reversal, refund, and data-quality cases.
-
-Launch the dashboard:
+Launch the dashboard from this project directory:
 
 ```powershell
 streamlit run app.py
 ```
 
-Choose **Run synthetic demonstration** to create a fresh synthetic run from
-the UI. Use **Download reconciliation Excel workbook** for the 15-sheet report.
-The dashboard can also list/download the approved SharePoint file types after
-the environment, site-specific permission grant, and production mappings have
-been configured.
+Select **Local Synced SharePoint Folder**, enter the local root, and choose
+**Profile September 2026 source files**. Review all worksheet/header structures,
+header-row placement, SnapPay daily-file consistency, and identifier-storage
+risks. In **Configuration Validation**, review and optionally save the
+proposed mappings as an unapproved draft. The app does not reconcile.
 
-Content hashes cannot be processed twice in the same run/reporting period. A
-duplicate mixed with new source files aborts the entire run to prevent a
-partial-population success; identical files can be reused for a different
-reporting period.
-
-Run automated tests:
+Run automated tests using synthetic workbooks created under pytest temporary
+directories:
 
 ```powershell
 pytest
@@ -54,18 +71,16 @@ pytest
 
 ## Runtime setup
 
-Copy `.env.example` to `.env` and supply values issued by your Microsoft 365
-administrator. The app uses interactive delegated Microsoft Graph
-authentication and the read-only `Sites.Selected` permission; the application
-must also be granted read access to the specific SharePoint site. See
-[sharepoint_setup.md](sharepoint_setup.md). Never put access tokens, client
-secrets, financial exports, databases, or generated reports in source control.
+The app uses the locally synchronized SharePoint folder and does not request
+Graph authentication. Microsoft Graph is an optional future connector; see
+[sharepoint_setup.md](sharepoint_setup.md) for its administrator-supplied
+configuration. Never commit source files, extracted data, databases, reports,
+or credentials.
 
-Update the production header, worksheet, required-field, amount tolerance,
-date-window, and SharePoint source-folder mappings in
-`config/column_mappings.yaml`. The synthetic mappings in
-`config/synthetic_column_mappings.yaml` are fixture-only and are not a
-representation of real processor formats.
+The app saves explicit, reviewer-approved pilot mappings under ignored local
+`data/approved_column_mappings.yaml`; it does not modify the tracked template.
+The synthetic mappings in `config/synthetic_column_mappings.yaml` are for
+tests only and are not a representation of real processor formats.
 
 ## Status terminology
 

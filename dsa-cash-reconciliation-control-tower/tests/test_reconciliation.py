@@ -271,3 +271,6 @@ def test_streamlit_app_renders_without_startup_exceptions(tmp_path, monkeypatch)
     monkeypatch.setenv("REPORT_OUTPUT_DIR", str(tmp_path / "reports"))
     app = AppTest.from_file(str(PROJECT / "app.py"), default_timeout=20).run()
     assert not app.exception
+    assert app.selectbox[0].value == "Local Synced SharePoint Folder"
+    assert any(button.label == "Profile September 2026 source files" for button in app.button)
+    assert not any("reconciliation" in button.label.casefold() for button in app.button)

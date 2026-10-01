@@ -2,45 +2,49 @@
 
 ## Components and trust boundaries
 
-1. **SharePoint landing zone:** controlled `01 Raw/SnapPay`, `01 Raw/BluePay`,
-   `01 Raw/BMO`, and `01 Raw/JDE` folders. Graph operations are list/read/download
-   only. The code does not issue create, update, delete, or upload calls.
-2. **Graph connector:** uses MSAL interactive delegated authentication and a
-   site-scoped, read-only Graph permission. IDs and folder locations arrive
-   through environment/configuration; nothing is hard-coded as a tenant
-   resource. Approved workbook/CSV bytes are downloaded to ignored local
-   `data/raw/` storage, hashed, and inventoried.
-3. **Source adapters:** one configured adapter per source reads CSV, XLSX, or
+1. **SharePoint landing zone:** the pilot uses the locally synchronized
+   SharePoint folder supplied through `LOCAL_SHAREPOINT_ROOT` or the UI root
+   path. It never writes to source files. Microsoft Graph remains an optional
+   future connector, not the active pilot mode.
+2. **Source profiler:** recursively selects only the five September pilot
+   filename prefixes and `.xlsx` files for the September 2026 pilot. It detects headers within the first
+   50 rows, records every worksheet structure and data-row count, compares
+   SnapPay daily-file layouts, and reports identifier storage metadata. It
+   does not extract or persist transaction content.
+3. **Mapping validation:** confidence-rated header proposals are editable,
+   visibly unapproved drafts kept separately from the active mapping. A
+   reviewer may independently assign adapters, select exact observed headers
+   and worksheets, and explicitly approve mappings; none of these steps occurs
+   automatically. `RC BLUEPAY GENERAL` stays unassigned until its source and
+   ledger semantics are confirmed. Approval metadata is saved only in ignored
+   local `data/`.
+4. **Source adapters:** one configured adapter per source reads CSV, XLSX, or
    XLSM; selects configured worksheet names; maps configured source headers to
    the canonical fields; and preserves raw row values and workbook/sheet/row
    lineage. Missing required headers are fatal configuration errors. Blank
    required values and malformed values are row-level quality exceptions.
-4. **Matching and controls:** pure Python logic applies ordered exact-key
+5. **Matching and controls:** pure Python logic applies ordered exact-key
    matches. It does not use fuzzy matching or machine learning. Timing
    candidates are kept out of confirmed matches.
-5. **Persistence:** `ReconciliationRepository` is the storage boundary.
+6. **Persistence:** `ReconciliationRepository` is the storage boundary.
    `SQLiteRepository` stores runs, canonical source rows, algorithmic ledger
    rows, file hashes, state/delta URLs, and separate manual override audit
    events.
-6. **Review/reporting:** Streamlit provides six review pages. Excel export is
+7. **Review/reporting:** Streamlit provides the source-profile and mapping
+   validation pilot pages. The reconciliation dashboard and report APIs remain
+   in the package but are not exposed by this pilot UI. Excel export is
    generated from the same persisted run detail and has the fixed set of 15
    sheets in [user_guide.md](user_guide.md).
 
 ```text
-SharePoint (read-only)
-       │ Microsoft Graph, approved files + metadata
+Local synchronized SharePoint folder (read-only)
+       │ filename rules, September 2026 pilot group
        ▼
-Local raw landing ── SHA-256 / duplicate gate ── Source adapters
-                                                   │
-                                                   ▼
-                               normalized records + immutable raw values
-                                                   │
-                                                   ▼
-                         exact-key matching → controls → SQLite repository
-                                                   │
-                                      ┌────────────┴────────────┐
-                                      ▼                         ▼
-                              Streamlit review             Excel report
+Workbook profiler ── sheet/header/row inventory ── Configuration Validation
+                                                         │
+                                          explicit human mapping approval
+                                                         │
+                                  Reconciliation intentionally not enabled
 ```
 
 ## Canonical row
