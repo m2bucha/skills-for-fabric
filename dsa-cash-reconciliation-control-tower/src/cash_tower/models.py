@@ -15,6 +15,9 @@ class SourceRecord:
     batch_number: str | None = None
     backend_id: str | None = None
     customer_reference: str | None = None
+    payment_type: str | None = None
+    document_number: str | None = None
+    document_type: str | None = None
     amount: Decimal | None = None
     transaction_date: date | None = None
     settlement_date: date | None = None
@@ -60,6 +63,9 @@ class LedgerRow:
     batch_number: str | None
     backend_id: str | None
     customer_reference: str | None
+    payment_type: str | None
+    document_number: str | None
+    document_type: str | None
     amount: Decimal | None
     amount_variance: Decimal
     transaction_date: date | None

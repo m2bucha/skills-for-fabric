@@ -98,6 +98,39 @@ def test_profile_compares_approved_mapping_to_observed_workbook_headers():
     assert missing_required_fields(profile, mappings) == ["transaction_date"]
 
 
+def test_profile_accepts_derived_bmo_amount_mapping():
+    profile = {
+        "source_type": "BMO BLUEPAY",
+        "inferred_source": "BMO",
+        "worksheets": [{
+            "worksheet": "Summary Report",
+            "headers": ["Date", "Debit", "Credit", "Customer Reference"],
+        }],
+    }
+    mappings = {
+        "sources": {
+            "BMO": {
+                "worksheets": ["Summary Report"],
+                "required": ["amount", "transaction_date"],
+                "required_any": ["customer_reference"],
+                "columns": {
+                    "transaction_date": ["Date"],
+                    "customer_reference": ["Customer Reference"],
+                },
+                "amount_calculation": {
+                    "operation": "credit_minus_debit",
+                    "credit": "Credit",
+                    "debit": "Debit",
+                },
+            }
+        },
+        "local_ingestion": {
+            "file_types": {"BMO BLUEPAY": {"source": "BMO"}}
+        },
+    }
+    assert missing_required_fields(profile, mappings) == []
+
+
 def test_profile_report_is_generated_in_memory_with_file_and_header_sheets(tmp_path):
     source = tmp_path / "SnapPay AR Transaction August 2026.xlsx"
     _workbook(source, ["Txn Ref", "Net"], [["TX-1", 12]])

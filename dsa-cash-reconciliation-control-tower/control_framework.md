@@ -52,10 +52,18 @@ input rows and signed dollars
 
 The bridge is checked independently for row counts and signed dollar amounts.
 Missing ledger rows, extra rows, or non-zero dollar/count differences mark a
-run `Critical`. The dashboard and workbook preserve the `Critical` status; a
-failed bridge is never presented as complete. The bridge partitions every
-source row exactly once; it does not claim that processor, bank, and GL dollar
-populations should be equal to one another.
+run `Critical`. Rows with a missing or malformed amount also mark the dollar
+bridge `Critical`, because the source population cannot be certified in
+dollars until Finance resolves or documents the amount. The dashboard and
+workbook preserve the `Critical` status; a failed or unverifiable bridge is
+never presented as complete. The bridge partitions every source row exactly
+once; it does not claim that processor, bank, and GL dollar populations should
+be equal to one another.
+
+Configured required sources are included in the control totals even when date
+filtering retains zero rows. A required source with no retained in-period
+population marks the run `Critical`; otherwise an absent source could disappear
+from both sides of the bridge and appear complete.
 
 Per-source controls include input, valid, and quality-rejected rows; input
 dollars; matched, timing, reject/reversal/refund, and unresolved rows/dollars;

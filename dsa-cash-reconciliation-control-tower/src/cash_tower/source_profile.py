@@ -339,7 +339,10 @@ def missing_required_fields(
     """Compare approved canonical mappings to observed workbook headers."""
     source = profile["inferred_source"]
     file_types = mappings.get("local_ingestion", {}).get("file_types", {}) if mappings else {}
-    file_type_config = file_types.get(profile["source_type"] + "*.xlsx", {})
+    file_type_config = file_types.get(
+        profile["source_type"] + "*.xlsx",
+        file_types.get(profile["source_type"], {}),
+    )
     source = file_type_config.get("source", source)
     if source not in REQUIRED_FIELDS:
         return ["Source adapter not assigned"]
@@ -359,6 +362,8 @@ def missing_required_fields(
     for sheet in matching_sheets:
         available = set(sheet["headers"])
         for field in REQUIRED_FIELDS[source]:
+            if field == "amount" and source_mapping.get("amount_calculation"):
+                continue
             candidates = columns.get(field, [])
             candidates = candidates if isinstance(candidates, list) else [candidates]
             if not candidates or not any(candidate in available for candidate in candidates):

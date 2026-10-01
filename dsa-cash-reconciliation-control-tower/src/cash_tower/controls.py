@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from decimal import Decimal
-from typing import Any
+from typing import Any, Iterable
 
 from cash_tower.models import LedgerRow, SourceRecord
 
@@ -14,18 +14,36 @@ CATEGORIES = {
 
 
 def calculate_controls(
-    records: list[SourceRecord], ledger: list[LedgerRow], run_id: str = ""
+    records: list[SourceRecord], ledger: list[LedgerRow], run_id: str = "",
+    expected_sources: Iterable[str] | None = None,
 ) -> dict[str, Any]:
     """Reconcile source populations against ledger disposition by source and dollars."""
-    record_by_id = {record.record_id: record for record in records}
-    ledger_by_id = {row.source_record_id: row for row in ledger}
-    sources = sorted({record.source for record in records} | {row.source for row in ledger})
+    expected = set(expected_sources) if expected_sources is not None else None
+    sources = sorted(
+        {record.source for record in records}
+        | {row.source for row in ledger}
+        | (expected or set())
+    )
     rows = []
     bridge_issues = []
     for source in sources:
         source_records = [record for record in records if record.source == source]
         source_ledger = [row for row in ledger if row.source == source]
+        if not source_records and expected is not None and source in expected:
+            bridge_issues.append(
+                f"{source}: no retained in-period records; source population is missing from the control bridge"
+            )
         input_amount = _sum(record.amount for record in source_records)
+        unvalued_amounts = [
+            record for record in source_records
+            if record.amount is None
+            or any(issue.startswith("Malformed amount:") for issue in record.quality_issues)
+        ]
+        if unvalued_amounts:
+            bridge_issues.append(
+                f"{source}: {len(unvalued_amounts)} rows have missing or malformed amounts; "
+                "dollar completeness cannot be certified"
+            )
         disposition: dict[str, list[LedgerRow]] = {name: [] for name in (
             "matched", "timing", "rejects_reversals_refunds", "unresolved"
         )}
@@ -64,6 +82,7 @@ def calculate_controls(
             "source": source,
             "input_rows": len(source_records),
             "input_dollars": input_amount,
+            "unvalued_amount_rows": len(unvalued_amounts),
             "valid_rows": valid_count,
             "rejected_rows": rejected_count,
             "matched_rows": bucket_rows["matched"],

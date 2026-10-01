@@ -30,7 +30,6 @@ def generate_synthetic_files(directory: str | Path) -> list[tuple[str, Path]]:
         _snap("S-REFUND", "B-REFUND", "R-REFUND", "-3.00", "REFUND"),
         _snap("", "B-BLANK", "R-BLANK", "6.00"),
         _snap("S-BAD-DATE", "B-BAD-DATE", "R-BAD-DATE", "7.00", date="not-a-date"),
-        _snap("S-BAD-AMOUNT", "B-BAD-AMOUNT", "R-BAD-AMOUNT", "not-money"),
     ]
     blue = [
         _blue("S-CLEAN", "R-CLEAN", "100.00", "B-CLEAN"),

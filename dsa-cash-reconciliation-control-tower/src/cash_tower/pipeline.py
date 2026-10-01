@@ -91,7 +91,12 @@ def run_reconciliation(
         amount_tolerance=Decimal(str(matching_config.get("amount_tolerance", "0.01"))),
         settlement_window_days=int(matching_config.get("settlement_window_days", 3)),
     )
-    controls = calculate_controls(records, result.ledger, run_id=run_id)
+    controls = calculate_controls(
+        records,
+        result.ledger,
+        run_id=run_id,
+        expected_sources=config.get("required_sources"),
+    )
     controls["candidate_matches"] = len(result.candidates)
     controls["files_processed"] = len(files_processed)
     if result.candidates:

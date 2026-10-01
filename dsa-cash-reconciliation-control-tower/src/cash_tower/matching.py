@@ -4,13 +4,17 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
+import re
 from typing import Any
 from uuid import uuid4
 
 from cash_tower.models import LedgerRow, SourceRecord
 
 ZERO = Decimal("0")
-REJECT_WORDS = ("reject", "reversal", "refund")
+REJECT_STATUS_PATTERN = re.compile(
+    r"\b(?:reject(?:ed|ion)?|reversal|reversed|refund(?:ed)?)\b",
+    re.IGNORECASE,
+)
 
 
 class _UnionFind:
@@ -80,7 +84,7 @@ def reconcile(
     jde = [item for item in records if item.source == "JDE"]
     rejected = {
         item.record_id for item in records
-        if item.status and any(word in item.status.casefold() for word in REJECT_WORDS)
+        if item.status and REJECT_STATUS_PATTERN.search(item.status)
     }
 
     # Step 1: exact transaction identifier, followed by amount tolerance.
@@ -156,6 +160,9 @@ def reconcile(
                     "batch_number": item.batch_number,
                     "backend_id": item.backend_id,
                     "customer_reference": item.customer_reference,
+                    "payment_type": item.payment_type,
+                    "document_number": item.document_number,
+                    "document_type": item.document_type,
                     "amount": str(item.amount) if item.amount is not None else None,
                     "transaction_date": item.transaction_date.isoformat() if item.transaction_date else None,
                     "settlement_date": item.settlement_date.isoformat() if item.settlement_date else None,
@@ -221,6 +228,9 @@ def reconcile(
                 batch_number=item.batch_number,
                 backend_id=item.backend_id,
                 customer_reference=item.customer_reference,
+                payment_type=item.payment_type,
+                document_number=item.document_number,
+                document_type=item.document_type,
                 amount=item.amount,
                 amount_variance=component_variance,
                 transaction_date=item.transaction_date,
