@@ -32,6 +32,12 @@ def normalize_date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
     try:
+        if isinstance(value, Real) and not isinstance(value, bool):
+            serial = float(value)
+            if 0 <= serial <= 2_958_465:
+                return pd.to_datetime(
+                    serial, unit="D", origin="1899-12-30", errors="raise"
+                ).date()
         parsed = pd.to_datetime(value, errors="raise")
         return parsed.date()
     except (ValueError, TypeError, OverflowError):
